@@ -14,8 +14,8 @@ import utils
 
 def interact_with_environment(env, replay_buffer, is_atari, num_actions, state_dim, device, args, parameters):
 	# For saving files
-	setting = f"{args.env}_{args.seed}"
-	buffer_name = f"{args.buffer_name}_{setting}"
+	setting = "{}_{}".format(args.env, args.seed)
+	buffer_name = "{}_{}".format(args.buffer_name, setting)
 
 	# Initialize and load policy
 	policy = DQN.DQN(
@@ -35,8 +35,8 @@ def interact_with_environment(env, replay_buffer, is_atari, num_actions, state_d
 		parameters["eval_eps"],
 	)
 
-	if args.generate_buffer: policy.load(f"./models/behavioral_{setting}")
-	
+	if args.generate_buffer: policy.load("./data/models/behavioral_{}".format(setting))
+
 	evaluations = []
 
 	state, done = env.reset(), False
@@ -77,7 +77,7 @@ def interact_with_environment(env, replay_buffer, is_atari, num_actions, state_d
 		if is_atari:
 			reward = info[0]
 			done_float = info[1]
-			
+
 		# Store data in replay buffer
 		replay_buffer.add(state, action, next_state, reward, done_float, done, episode_start)
 		state = copy.copy(next_state)
@@ -89,7 +89,8 @@ def interact_with_environment(env, replay_buffer, is_atari, num_actions, state_d
 
 		if done:
 			# +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
-			print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
+			if episode_num % 100 == 0:
+				print("Total T: {} Episode Num: {} Episode T: {} Reward: {:.3f}".format(t+1, episode_num+1, episode_timesteps, episode_reward))
 			# Reset environment
 			state, done = env.reset(), False
 			episode_start = True
@@ -101,25 +102,25 @@ def interact_with_environment(env, replay_buffer, is_atari, num_actions, state_d
 		# Evaluate episode
 		if args.train_behavioral and (t + 1) % parameters["eval_freq"] == 0:
 			evaluations.append(eval_policy(policy, args.env, args.seed))
-			np.save(f"./results/behavioral_{setting}", evaluations)
-			policy.save(f"./models/behavioral_{setting}")
+			np.save("./data/results/behavioral_{}".format(setting), evaluations)
+			policy.save("./data/models/behavioral_{}".format(setting))
 
 	# Save final policy
 	if args.train_behavioral:
-		policy.save(f"./models/behavioral_{setting}")
+		policy.save("./data/models/behavioral_{}".format(setting))
 
 	# Save final buffer and performance
 	else:
 		evaluations.append(eval_policy(policy, args.env, args.seed))
-		np.save(f"./results/buffer_performance_{setting}", evaluations)
-		replay_buffer.save(f"./buffers/{buffer_name}")
+		np.save("./data/results/buffer_performance_{}".format(setting), evaluations)
+		replay_buffer.save("./data/buffers/{}".format(buffer_name))
 
 
 # Trains BCQ offline
 def train_BCQ(env, replay_buffer, is_atari, num_actions, state_dim, device, args, parameters):
 	# For saving files
-	setting = f"{args.env}_{args.seed}"
-	buffer_name = f"{args.buffer_name}_{setting}"
+	setting = "{}_{}".format(args.env, args.seed)
+	buffer_name = "{}_{}".format(args.buffer_name, setting)
 
 	# Initialize and load policy
 	policy = discrete_BCQ.discrete_BCQ(
@@ -140,24 +141,24 @@ def train_BCQ(env, replay_buffer, is_atari, num_actions, state_dim, device, args
 		parameters["eval_eps"]
 	)
 
-	# Load replay buffer	
-	replay_buffer.load(f"./buffers/{buffer_name}")
-	
+	# Load replay buffer
+	replay_buffer.load("./data/buffers/{}".format(buffer_name))
+
 	evaluations = []
 	episode_num = 0
-	done = True 
+	done = True
 	training_iters = 0
-	
-	while training_iters < args.max_timesteps: 
-		
+
+	while training_iters < args.max_timesteps:
+
 		for _ in range(int(parameters["eval_freq"])):
 			policy.train(replay_buffer)
 
 		evaluations.append(eval_policy(policy, args.env, args.seed))
-		np.save(f"./results/BCQ_{setting}", evaluations)
+		np.save("./data/results/BCQ_{}".format(setting), evaluations)
 
 		training_iters += int(parameters["eval_freq"])
-		print(f"Training iterations: {training_iters}")
+		print("Training iterations: {}".format(training_iters))
 
 
 # Runs policy for X episodes and returns average reward
@@ -177,7 +178,7 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 	avg_reward /= eval_episodes
 
 	print("---------------------------------------")
-	print(f"Evaluation over {eval_episodes} episodes: {avg_reward:.3f}")
+	print("Evaluation over {} episodes: {:.3f}".format(eval_episodes, avg_reward))
 	print("---------------------------------------")
 	return avg_reward
 
@@ -253,28 +254,31 @@ if __name__ == "__main__":
 	parser.add_argument("--train_behavioral", action="store_true") # If true, train behavioral policy
 	parser.add_argument("--generate_buffer", action="store_true")  # If true, generate buffer
 	args = parser.parse_args()
-	
-	print("---------------------------------------")	
+
+	print("---------------------------------------")
 	if args.train_behavioral:
-		print(f"Setting: Training behavioral, Env: {args.env}, Seed: {args.seed}")
+		print("Setting: Training behavioral, Env: {}, Seed: {}".format(args.env, args.seed))
 	elif args.generate_buffer:
-		print(f"Setting: Generating buffer, Env: {args.env}, Seed: {args.seed}")
+		print("Setting: Generating buffer, Env: {}, Seed: {}".format(args.env, args.seed))
 	else:
-		print(f"Setting: Training BCQ, Env: {args.env}, Seed: {args.seed}")
+		print("Setting: Training BCQ, Env: {}, Seed: {}".format(args.env, args.seed))
 	print("---------------------------------------")
 
 	if args.train_behavioral and args.generate_buffer:
 		print("Train_behavioral and generate_buffer cannot both be true.")
 		exit()
 
-	if not os.path.exists("./results"):
-		os.makedirs("./results")
+	if not os.path.exists("./data"):
+		os.makedirs("./data")
 
-	if not os.path.exists("./models"):
-		os.makedirs("./models")
+	if not os.path.exists("./data/results"):
+		os.makedirs("./data/results")
 
-	if not os.path.exists("./buffers"):
-		os.makedirs("./buffers")
+	if not os.path.exists("./data/models"):
+		os.makedirs("./data/models")
+
+	if not os.path.exists("./data/buffers"):
+		os.makedirs("./data/buffers")
 
 	# Make env and determine properties
 	env, is_atari, state_dim, num_actions = utils.make_env(args.env, atari_preprocessing)

@@ -4,9 +4,9 @@ import numpy as np
 import torch
 
 def ReplayBuffer(state_dim, is_atari, atari_preprocessing, batch_size, buffer_size, device):
-	if is_atari: 
+	if is_atari:
 		return AtariBuffer(state_dim, atari_preprocessing, batch_size, buffer_size, device)
-	else: 
+	else:
 		return StandardBuffer(state_dim, batch_size, buffer_size, device)
 
 
@@ -29,7 +29,7 @@ class AtariBuffer(object):
 
 		self.action = np.zeros((self.max_size, 1), dtype=np.int64)
 		self.reward = np.zeros((self.max_size, 1))
-		
+
 		# not_done only consider "done" if episode terminates due to failure condition
 		# if episode terminates due to timelimit, the transition is not added to the buffer
 		self.not_done = np.zeros((self.max_size, 1))
@@ -92,40 +92,40 @@ class AtariBuffer(object):
 
 
 	def save(self, save_folder, chunk=int(1e5)):
-		np.save(f"{save_folder}_action.npy", self.action[:self.crt_size])
-		np.save(f"{save_folder}_reward.npy", self.reward[:self.crt_size])
-		np.save(f"{save_folder}_not_done.npy", self.not_done[:self.crt_size])
-		np.save(f"{save_folder}_first_timestep.npy", self.first_timestep[:self.crt_size])
-		np.save(f"{save_folder}_replay_info.npy", [self.ptr, chunk])
+		np.save("{}_action.npy".format(save_folder), self.action[:self.crt_size])
+		np.save("{}_reward.npy".format(save_folder), self.reward[:self.crt_size])
+		np.save("{}_not_done.npy".format(save_folder), self.not_done[:self.crt_size])
+		np.save("{}_first_timestep.npy".format(save_folder), self.first_timestep[:self.crt_size])
+		np.save("{}_replay_info.npy".format(save_folder), [self.ptr, chunk])
 
 		crt = 0
 		end = min(chunk, self.crt_size + 1)
 		while crt < self.crt_size + 1:
-			np.save(f"{save_folder}_state_{end}.npy", self.state[crt:end])
+			np.save("{}_state_{}.npy".format(save_folder, end), self.state[crt:end])
 			crt = end
 			end = min(end + chunk, self.crt_size + 1)
 
 
 	def load(self, save_folder, size=-1):
-		reward_buffer = np.load(f"{save_folder}_reward.npy")
+		reward_buffer = np.load("{}_reward.npy".format(save_folder))
 		size = min(int(size), self.max_size) if size > 0 else self.max_size
 		self.crt_size = min(reward_buffer.shape[0], size)
-		
+
 		# Adjust crt_size if we're using a custom size
 		size = min(int(size), self.max_size) if size > 0 else self.max_size
 		self.crt_size = min(reward_buffer.shape[0], size)
 
-		self.action[:self.crt_size] = np.load(f"{save_folder}_action.npy")[:self.crt_size]
+		self.action[:self.crt_size] = np.load("{}_action.npy".format(save_folder))[:self.crt_size]
 		self.reward[:self.crt_size] = reward_buffer[:self.crt_size]
-		self.not_done[:self.crt_size] = np.load(f"{save_folder}_not_done.npy")[:self.crt_size]
-		self.first_timestep[:self.crt_size] = np.load(f"{save_folder}_first_timestep.npy")[:self.crt_size]
+		self.not_done[:self.crt_size] = np.load("{}_not_done.npy".format(save_folder))[:self.crt_size]
+		self.first_timestep[:self.crt_size] = np.load("{}_first_timestep.npy".format(save_folder))[:self.crt_size]
 
-		self.ptr, chunk = np.load(f"{save_folder}_replay_info.npy")
+		self.ptr, chunk = np.load("{}_replay_info.npy".format(save_folder))
 
 		crt = 0
 		end = min(chunk, self.crt_size + 1)
 		while crt < self.crt_size + 1:
-			self.state[crt:end] = np.load(f"{save_folder}_state_{end}.npy")
+			self.state[crt:end] = np.load("{}_state_{}.npy".format(save_folder, end))
 			crt = end
 			end = min(end + chunk, self.crt_size + 1)
 
@@ -170,28 +170,28 @@ class StandardBuffer(object):
 
 
 	def save(self, save_folder):
-		np.save(f"{save_folder}_state.npy", self.state[:self.crt_size])
-		np.save(f"{save_folder}_action.npy", self.action[:self.crt_size])
-		np.save(f"{save_folder}_next_state.npy", self.next_state[:self.crt_size])
-		np.save(f"{save_folder}_reward.npy", self.reward[:self.crt_size])
-		np.save(f"{save_folder}_not_done.npy", self.not_done[:self.crt_size])
-		np.save(f"{save_folder}_ptr.npy", self.ptr)
+		np.save("{}_state.npy".format(save_folder), self.state[:self.crt_size])
+		np.save("{}_action.npy".format(save_folder), self.action[:self.crt_size])
+		np.save("{}_next_state.npy".format(save_folder), self.next_state[:self.crt_size])
+		np.save("{}_reward.npy".format(save_folder), self.reward[:self.crt_size])
+		np.save("{}_not_done.npy".format(save_folder), self.not_done[:self.crt_size])
+		np.save("{}_ptr.npy".format(save_folder), self.ptr)
 
 
 	def load(self, save_folder, size=-1):
-		reward_buffer = np.load(f"{save_folder}_reward.npy")
-		
+		reward_buffer = np.load("{}_reward.npy".format(save_folder))
+
 		# Adjust crt_size if we're using a custom size
 		size = min(int(size), self.max_size) if size > 0 else self.max_size
 		self.crt_size = min(reward_buffer.shape[0], size)
 
-		self.state[:self.crt_size] = np.load(f"{save_folder}_state.npy")[:self.crt_size]
-		self.action[:self.crt_size] = np.load(f"{save_folder}_action.npy")[:self.crt_size]
-		self.next_state[:self.crt_size] = np.load(f"{save_folder}_next_state.npy")[:self.crt_size]
+		self.state[:self.crt_size] = np.load("{}_state.npy".format(save_folder))[:self.crt_size]
+		self.action[:self.crt_size] = np.load("{}_action.npy".format(save_folder))[:self.crt_size]
+		self.next_state[:self.crt_size] = np.load("{}_next_state.npy".format(save_folder))[:self.crt_size]
 		self.reward[:self.crt_size] = reward_buffer[:self.crt_size]
-		self.not_done[:self.crt_size] = np.load(f"{save_folder}_not_done.npy")[:self.crt_size]
+		self.not_done[:self.crt_size] = np.load("{}_not_done.npy".format(save_folder))[:self.crt_size]
 
-		print(f"Replay Buffer loaded with {self.crt_size} elements.")
+		print("Replay Buffer loaded with {} elements.".format(self.crt_size))
 
 
 # Atari Preprocessing
@@ -257,11 +257,11 @@ class AtariPreprocessing(object):
 				done = True if crt_lives < self.lives else done
 				self.lives = crt_lives
 
-			if done: 
+			if done:
 				break
 
 			# Second last and last frame
-			f = frame + 2 - self.frame_skip 
+			f = frame + 2 - self.frame_skip
 			if f >= 0:
 				self.env.ale.getScreenGrayscale(self.frame_buffer[f])
 
@@ -299,13 +299,14 @@ class AtariPreprocessing(object):
 # Create environment, add wrapper if necessary and create env_properties
 def make_env(env_name, atari_preprocessing):
 	env = gym.make(env_name)
-	
-	is_atari = gym.envs.registry.spec(env_name).entry_point == 'gym.envs.atari:AtariEnv'
+
+	#is_atari = gym.envs.registry.spec(env_name).entry_point == 'gym.envs.atari:AtariEnv'
+	is_atari = True # well
 	env = AtariPreprocessing(env, **atari_preprocessing) if is_atari else env
 
 	state_dim = (
-		atari_preprocessing["state_history"], 
-		atari_preprocessing["frame_size"], 
+		atari_preprocessing["state_history"],
+		atari_preprocessing["frame_size"],
 		atari_preprocessing["frame_size"]
 	) if is_atari else env.observation_space.shape[0]
 
